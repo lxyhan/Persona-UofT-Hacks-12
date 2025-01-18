@@ -27,6 +27,3 @@ def generate_language_response(prompt, language="Mandarin", model_type="fast"):
     except Exception as e:
         print(f"Error generating response: {e}")
         return None
-
-response = generate_language_response("Hello")
-print(response)
