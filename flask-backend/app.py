@@ -44,10 +44,10 @@ def generate_llm_translation():
     try:
         data = request.get_json()
         prompt = data.get('prompt', "Hello")    # simple default value
-        language = data.get('language', "Mandarin")
+        language = data.get('language', "French")
 
         # Generate the response to the user's prompt
-        response = generate_language_response(prompt, language)[0].text
+        response = generate_translation_response(prompt, language)[0].text
         # print(response)
 
         return jsonify({
