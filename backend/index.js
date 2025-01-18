@@ -8,14 +8,6 @@ import OpenAI from "openai";
 dotenv.config();
 
 let shouldZoom = false;
-// In your Node.js backend
-let currentMessage = null;
-
-app.get('/chat-message', (req, res) => {
-  const message = currentMessage;
-  currentMessage = null; // Clear the message after sending
-  res.json({ message });
-});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "-", // Your OpenAI API key here, I used "-" to avoid errors when the key is not set but you should not do that
@@ -23,6 +15,7 @@ const openai = new OpenAI({
 
 const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
 const voiceID = "9BWtsMINqrJLrRacOk9x";
+const modelID = "eleven_multilingual_v2";
 
 const app = express();
 app.use(express.json());
@@ -106,48 +99,78 @@ app.post("/chat", async (req, res) => {
     return;
   }
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    max_tokens: 1000,
-    temperature: 0.6,
-    response_format: {
-      type: "json_object",
+  // Replacing this chat completion with a call to my LLM
+  const FLASK_BACKEND_URL = "http://0.0.0.0:8000"
+  const trans_response = await fetch(`${FLASK_BACKEND_URL}/api/translation`, {
+    method: 'POST',  // or 'GET' depending on your endpoint
+    headers: {
+        'Content-Type': 'application/json',
     },
-    messages: [
-      {
-        role: "system",
-        content: `
-        You are a teacher.
-        You will always reply with a JSON array of messages. With a maximum of 3 messages.
-        Each message has a text, facialExpression, and animation property.
-        The different facial expressions are: smile, sad, angry, surprised, funnyFace, and default.
-        The different animations are: Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, and Angry. 
-        `,
-      },
-      {
-        role: "user",
-        content: userMessage || "Hello",
-      },
-    ],
+    body: JSON.stringify({
+        // your data here
+        prompt: userMessage,
+        language: "French"    // hardcoded to french for now, but we could make it dynamic if we store the language as state
+    })
   });
-  let messages = JSON.parse(completion.choices[0].message.content);
-  if (messages.messages) {
-    messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
-  }
-  // Store the message for the Next.js app to pick up
-  currentMessage = messages[0].text;  // or however you want to format the message
 
+  const trans_json = await trans_response.json();
+  const translation = trans_json['message'];
 
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
+  // The basic translation response will always generate three paragraphs, which we split 
+  // into three components using regex
+  const responses = translation.split(/\n\s*\n/);
+  console.log(responses);
+  const langs = ["English", "French", "English"]  // likely not necessary ElevenLabs can prob recognize language 
+
+  // const completion = await openai.chat.completions.create({
+  //   model: "gpt-4o",
+  //   max_tokens: 1000,
+  //   temperature: 0.6,
+  //   response_format: {
+  //     type: "json_object",
+  //   },
+  //   messages: [
+  //     {
+  //       role: "system",
+  //       content: `
+  //       You are a teacher.
+  //       You will always reply with a JSON array of messages. With a maximum of 3 messages.
+  //       Each message has a text, facialExpression, and animation property.
+  //       The different facial expressions are: smile, sad, angry, surprised, funnyFace, and default.
+  //       The different animations are: Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, and Angry. 
+  //       `,
+  //     },
+  //     {
+  //       role: "user",
+  //       content: userMessage || "Hello",
+  //     },
+  //   ],
+  // });
+  // let messages = JSON.parse(completion.choices[0].message.content);
+  // if (messages.messages) {
+  //   messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
+  // }
+
+  const messages = [];
+  for (let i = 0; i < responses.length; i++) {
+    // const message = messages[i];
+    const message = {
+        text: responses[i],
+        audio: undefined,
+        lipsync: undefined,
+        facialExpression: "smile",
+        animation: "Talking_1"
+    }
     // generate audio file
     const fileName = `audios/message_${i}.mp3`; // The name of your audio file
-    const textInput = message.text; // The text you wish to convert to speech
-    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
+    const textInput = responses[i]; // The text you wish to convert to speech
+    // Do we need to specify the language
+    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput, modelID);
     // generate lipsync
     await lipSyncMessage(i);
     message.audio = await audioFileToBase64(fileName);
     message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
+    messages.push(message);
   }
 
   res.send({ messages });

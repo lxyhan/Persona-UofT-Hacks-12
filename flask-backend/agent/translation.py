@@ -10,7 +10,13 @@ anthropic = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 
 def create_translation_prompt(user_input):
+    # Try adding an SSML response hardcoded or get the LLM to generate SSML around the mixed language input
+    # to improve pronunciation 
     return f"""
+        If the user asked for how to say something specific in a certain language, follow the instructions
+        in this prompt. If they didn't feel free to ignore it and use your judgement.
+
+        Instructions
         Please answer the user's prompt below asking how to say things in a specific language.
         Please answer first by providing a preamble in English about the generated translation(s), then
         provide the translation(s) in the other language, then explain the result(s) in English again. Keep in mind when
@@ -40,6 +46,7 @@ def create_translation_prompt(user_input):
         Your turn:
         Prompt: {user_input}
     """
+    # Play around with the prompts after 
 
 def generate_translation_response(prompt, language="Mandarin", model_type="fast"):
     # model = "claude-3-5-haiku-20241022" if model_type == "fast" else "claude-3-5-sonnet-20241022"
@@ -96,10 +103,10 @@ def generate_followup_response(prev_input, prev_response, language="French", mod
 # response1 = generate_translation_response("For my upcoming trip to Paris, can you teach me a few greetings that will help me connect with locals?")
 # print(response1[0].text)
 
-input2 = "Can you teach me how to say 'Can I get one moon cake please?' in Mandarin?"
-response2 = generate_translation_response("Can you teach me how to say 'Can I get one moon cake please?' in Mandarin?")
-print(response2[0].text)
+# input2 = "Can you teach me how to say 'Can I get one croissant please?' in French?"
+# response2 = generate_translation_response(input2)
+# print(response2[0].text)
 
-# Test out the follow up response
-followup = generate_followup_response(prev_input=input2, prev_response=response2, language="French")
-print(followup[0].text)
+# # Test out the follow up response
+# followup = generate_followup_response(prev_input=input2, prev_response=response2, language="French")
+# print(followup[0].text)
