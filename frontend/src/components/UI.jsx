@@ -1,113 +1,163 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useChat } from "../hooks/useChat";
 
 export const UI = ({ hidden, ...props }) => {
   const input = useRef();
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioStream, setAudioStream] = useState(null);
+  const [recordedMessage, setRecordedMessage] = useState(null);
   const { chat, loading, cameraZoomed, setCameraZoomed, message } = useChat();
 
+  const toggleRecording = async () => {
+    if (!isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          console.log("Recording stopped, processing audio...");
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          console.log("Audio blob created:", audioBlob);
+
+          const formData = new FormData();
+          formData.append("file", audioBlob, "audio.webm");
+          formData.append("model", "whisper-1");
+
+          try {
+            console.log("Sending request to Whisper API...");
+            const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+              },
+              body: formData
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error("API Error:", errorData);
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Transcription result:", data);
+            
+            if (data.text) {
+              setRecordedMessage(data.text);
+              chat(data.text);
+            }
+          } catch (error) {
+            console.error('Error transcribing audio:', error);
+            alert('Error transcribing audio. Please try again.');
+          }
+        };
+
+        setAudioStream({ stream, mediaRecorder });
+        mediaRecorder.start();
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+      }
+    } else if (audioStream) {
+      audioStream.mediaRecorder.stop();
+      audioStream.stream.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(!isRecording);
+  };
+
   const sendMessage = () => {
-    const text = input.current.value;
-    if (!loading && !message) {
-      chat(text);
-      input.current.value = "";
+    if (recordedMessage) {
+      chat(recordedMessage);
+      setRecordedMessage(null);
+    } else {
+      const text = input.current.value;
+      if (!loading && !message) {
+        chat(text);
+        input.current.value = "";
+      }
     }
   };
-  if (hidden) {
-    return null;
-  }
 
-  return (
-    <>
-      <div className="fixed top-0 left-0 right-0 bottom-0 z-10 flex justify-between p-4 flex-col pointer-events-none">
-        <div className="self-start backdrop-blur-md bg-white bg-opacity-50 p-4 rounded-lg">
-          <h1 className="font-black text-xl">UofTHacks Test</h1>
-          <p>ChatBot test</p>
-        </div>
-        <div className="w-full flex flex-col items-end justify-center gap-4">
-          <button
-            onClick={() => setCameraZoomed(!cameraZoomed)}
-            className="pointer-events-auto bg-grey-500 hover:bg-grey-600 text-white p-4 rounded-md"
-          >
-            {cameraZoomed ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM13.5 10.5h-6"
-                />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"
-                />
-              </svg>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              const body = document.querySelector("body");
-              if (body.classList.contains("greenScreen")) {
-                body.classList.remove("greenScreen");
-              } else {
-                body.classList.add("greenScreen");
-              }
-            }}
-            className="pointer-events-auto bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-md"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              <path
-                strokeLinecap="round"
-                d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className="flex items-center gap-2 pointer-events-auto max-w-screen-sm w-full mx-auto">
-          <input
-            className="w-full placeholder:text-gray-800 placeholder:italic p-4 rounded-md bg-opacity-50 bg-white backdrop-blur-md"
-            placeholder="Type a message..."
-            ref={input}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                sendMessage();
-              }
-            }}
-          />
-          <button
-            disabled={loading || message}
-            onClick={sendMessage}
-            className={`bg-blue-500 hover:bg-blue-600 text-white p-4 px-10 font-semibold uppercase rounded-md ${
-              loading || message ? "cursor-not-allowed opacity-30" : ""
-            }`}
-          >
-            Send
-          </button>
+
+useEffect(() => {
+  const handleMessage = (event) => {
+    if (event.data.type === "speech-to-chatbot") {
+      console.log("Received message from speech app:", event.data.message);
+      chat(event.data.message); // Use the chat function to process the text
+    }
+  };
+
+  window.addEventListener("message", handleMessage);
+
+  return () => {
+    window.removeEventListener("message", handleMessage);
+  };
+}, [chat]);
+  
+return (
+  <div className="fixed inset-0 z-10 flex flex-col justify-between p-8">
+    {/* Header */}
+    <div className="self-start rounded-2xl bg-black/50 p-6 border border-white/10 shadow-xl">
+      <h1 className="text-3xl font-bold text-white">
+        Mme. Dubois
+      </h1>
+      <p className="text-lg text-white/70">French Teacher</p>
+    </div>
+
+    {/* Recording Status */}
+    {isRecording && (
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+        <div className="flex items-center gap-3 bg-black/70 px-6 py-4 rounded-full border border-white/20">
+          <div className="animate-pulse w-3 h-3 bg-red-500 rounded-full" />
+          <span className="text-white">Recording...</span>
         </div>
       </div>
-    </>
-  );
+    )}
+
+    {/* Input Area */}
+    <div className="flex items-center gap-4 max-w-3xl mx-auto w-full">
+      <div className="flex-1 relative">
+        <input
+          className="w-full h-16 px-6 rounded-full bg-black/50 border border-white/10 text-white placeholder:text-white/50 text-lg focus:outline-none focus:ring-2 focus:ring-white/30"
+          placeholder={recordedMessage || "Ask me anything..."}
+          ref={input}
+          disabled={recordedMessage !== null}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") sendMessage();
+          }}
+        />
+        <button
+          onClick={toggleRecording}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full 
+            ${isRecording ? 'bg-red-500' : 'bg-white/10'} 
+            hover:bg-white/20 transition-all border border-white/10`}
+        >
+          {isRecording ? (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-white">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-white">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+          )}
+        </button>
+      </div>
+      
+      <button
+        disabled={loading || (message && !recordedMessage)}
+        onClick={sendMessage}
+        className={`h-16 px-8 rounded-full border border-white/10 text-white font-semibold 
+          transition-all disabled:opacity-50 disabled:hover:bg-white/10
+          ${recordedMessage ? 'bg-green-500 hover:bg-green-600' : 'bg-white/10 hover:bg-white/20'}`}
+      >
+        Send
+      </button>
+    </div>
+  </div>
+);
 };

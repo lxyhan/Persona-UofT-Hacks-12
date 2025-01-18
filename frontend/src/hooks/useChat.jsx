@@ -1,36 +1,47 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 
 const backendUrl = "http://localhost:3000";
 // import.meta.env.VITE_API_URL ||
 const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
+  console.log("ChatProvider initialized"); // Add this
   const chat = async (message) => {
+    console.log("CHAT FUNCTION CALLED WITH:", message);  // More visible logging
     setLoading(true);
-    console.log("Tried to access backend");
-  
+    
     try {
-      const data = await fetch(`${backendUrl}/chat`, {
+      console.log("Making fetch request to:", `${backendUrl}/chat`);
+      const response = await fetch(`${backendUrl}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ message }),
       });
+
+      await fetch(`${backendUrl}/zoom`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
   
-      // Parse the response
-      const responseJson = await data.json();
+      console.log("Raw response:", response);
+      const responseJson = await response.json();
+      console.log("Parsed response:", responseJson);
   
-      // Validate that 'responseJson.messages' is an array before proceeding
       const resp = responseJson.messages;
+      console.log("Messages array:", resp);
   
       if (Array.isArray(resp)) {
+        console.log("Setting messages to:", [...messages, ...resp]);
         setMessages((messages) => [...messages, ...resp]);
       } else {
-        console.error("Expected 'messages' to be an array, but received:", resp);
+        console.error("Not an array:", resp);
       }
     } catch (error) {
-      console.error("Error fetching chat data:", error);
+      console.error("CHAT ERROR:", error);
     } finally {
       setLoading(false);
     }
@@ -43,6 +54,29 @@ export const ChatProvider = ({ children }) => {
   const onMessagePlayed = () => {
     setMessages((messages) => messages.slice(1));
   };
+  
+  console.log("💫 ChatProvider initialized");
+
+  useEffect(() => {
+    // Create WebSocket directly without ref
+    const ws = new WebSocket('ws://localhost:8081');
+    
+    console.log('CREATED NEW WEBSOCKET');
+
+    // Super simple message handler
+    ws.addEventListener('message', function(event) {
+      console.log('RAW MESSAGE RECEIVED:', event.data);
+      // Don't even try to process it yet, just prove we can receive
+    });
+
+    // Log literally everything
+    ws.addEventListener('open', () => console.log('SOCKET OPENED'));
+    ws.addEventListener('close', () => console.log('SOCKET CLOSED'));
+    ws.addEventListener('error', (e) => console.log('SOCKET ERROR:', e));
+
+    return () => ws.close();
+  }, []);
+
 
   useEffect(() => {
     if (messages.length > 0) {

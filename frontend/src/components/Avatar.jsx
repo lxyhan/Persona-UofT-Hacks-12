@@ -108,7 +108,7 @@ let setupMode = false;
 
 export function Avatar(props) {
   const { nodes, materials, scene } = useGLTF(
-    "/models/Girl2.glb"
+    "/models/French.glb"
   );
 
   const { message, onMessagePlayed, chat } = useChat();
@@ -400,5 +400,5 @@ export function Avatar(props) {
   );
 }
 
-useGLTF.preload("/models/Girl1.glb");
+useGLTF.preload("/models/Chinese.glb");
 useGLTF.preload("/models/animations.glb");

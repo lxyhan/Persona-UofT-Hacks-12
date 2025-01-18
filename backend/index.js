@@ -7,6 +7,16 @@ import { promises as fs } from "fs";
 import OpenAI from "openai";
 dotenv.config();
 
+let shouldZoom = false;
+// In your Node.js backend
+let currentMessage = null;
+
+app.get('/chat-message', (req, res) => {
+  const message = currentMessage;
+  currentMessage = null; // Clear the message after sending
+  res.json({ message });
+});
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "-", // Your OpenAI API key here, I used "-" to avoid errors when the key is not set but you should not do that
 });
@@ -124,6 +134,10 @@ app.post("/chat", async (req, res) => {
   if (messages.messages) {
     messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
   }
+  // Store the message for the Next.js app to pick up
+  currentMessage = messages[0].text;  // or however you want to format the message
+
+
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     // generate audio file
@@ -151,4 +165,16 @@ const audioFileToBase64 = async (file) => {
 
 app.listen(port, () => {
   console.log(`UofTHacks Bot listening on port ${port}`);
+});
+
+app.post('/zoom', (req, res) => {
+  shouldZoom = true;
+  res.json({ success: true });
+});
+
+app.get('/should-zoom', (req, res) => {
+  console.log('Got should-zoom request');
+  const current = shouldZoom;
+  shouldZoom = false;
+  res.json({ shouldZoom: current });
 });

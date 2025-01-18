@@ -22,3 +22,8 @@ body.greenScreen {
   background-color: #00ff00;
   background-image: none;
 }
+
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/path/to/SF-Pro-Display-Regular.otf') format('opentype');
+}
