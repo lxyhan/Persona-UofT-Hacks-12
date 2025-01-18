@@ -1,0 +1,12 @@
+boto3
+flask
+flask-cors
+opencv-python
+fer
+mediapipe
+anthropic
+tensorflow-macos
+tensorflow-metal
+pydantic
+Pillow
+python-dotenv
