@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from agent.emotion_monitor import EmotionMonitorService
+from agent.emotion_monitor import EmotionMonitorService, LanguagePronunciationGuide
 from agent.translation import *
 
 
@@ -9,7 +9,7 @@ import logging
 import time
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('flask_cors')
+logger = logging.getLogger()
 logger.level = logging.DEBUG
 
 # Initialize Flask app
@@ -125,34 +125,41 @@ def get_result():
             'status': 'error',
             'message': str(e)
         }), 500
-
-@app.route('/api/monitor/pronunciation', methods=['GET'])
-def get_pronunciation_feedback():
-    """
-    """
+    
+@app.route('/api/monitor/pronunciation', methods=['POST'])
+def check_pronunciation():
+    """Check pronunciation for a specific phoneme in a specific language"""
+    # Too many requests causes seg faults???? be careful
     try:
-        # Get the latest landmark data
-        landmarks = emotion_service.landmark_buffer[-1] if emotion_service.landmark_buffer else None
-        if not landmarks:
+        data = request.get_json()
+        phoneme = data.get('phoneme', '')
+        language = data.get('language', 'french')  # default to French
+
+        logger.info("Parsed Pronunciation request")
+        
+        # Initialize pronunciation guide if needed
+        if not hasattr(emotion_service, 'pronunciation_guide'):
+            emotion_service.pronunciation_guide = LanguagePronunciationGuide(language)
+        elif emotion_service.pronunciation_guide.language != language:
+            emotion_service.pronunciation_guide = LanguagePronunciationGuide(language)
+        
+        logger.info("Created pronunciation guide")
+
+        # Get pronunciation analysis
+        analysis = emotion_service.analyze_pronunciation(phoneme)
+        feedback = analysis['feedback']
+        
+        if analysis:
+            return jsonify({
+                'status': 'success',
+                'data': feedback
+            }), 200
+        else:
             return jsonify({
                 'status': 'error',
-                'message': 'No landmark data available'
+                'message': 'No pronunciation data available'
             }), 404
-        
-        # Get mouth shape analysis
-        mouth_feedback = emotion_service.analyze_mouth_shape(landmarks)
-
-        # Get current frame for tongue analysis
-        ret, frame = emotion_service.cap.read()
-        tongue_position = emotion_service.detect_tongue_position(frame, landmarks) if ret else None
-
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'mouth_shape': mouth_feedback,
-                'tongue_position': tongue_position
-            }
-        }), 200
+            
     except Exception as e:
         return jsonify({
             'status': 'error',
