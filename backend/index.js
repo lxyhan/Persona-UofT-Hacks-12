@@ -54,7 +54,30 @@ const lipSyncMessage = async (message) => {
   console.log(`Lip sync done in ${new Date().getTime() - time}ms`);
 };
 
+const checkPronunciationIntent = (message) => {
+  // Convert to lowercase for case-insensitive matching
+  const lowercaseMessage = message.toLowerCase();
+  
+  // Array of pronunciation-related keywords
+  const pronunciationKeywords = [
+      'pronunciation',
+      'pronounce',
+      'say',
+      'speak',
+      'sound',
+      'accent'
+  ];
+  
+  // Check if any of the keywords are in the message - boolean 
+  return pronunciationKeywords.some(keyword => 
+      lowercaseMessage.includes(keyword)
+  );
+}
+
 app.post("/chat", async (req, res) => {
+  // Hardcoded Emotion Recognition workflow trigger
+  // Generate a number between 0 and 1 for every call, 
+  const FLASK_BACKEND_URL = "http://0.0.0.0:8000"
   const userMessage = req.body.message;
   if (!userMessage) {
     res.send({
@@ -99,59 +122,57 @@ app.post("/chat", async (req, res) => {
     return;
   }
 
-  // Replacing this chat completion with a call to my LLM
-  const FLASK_BACKEND_URL = "http://0.0.0.0:8000"
-  const trans_response = await fetch(`${FLASK_BACKEND_URL}/api/translation`, {
-    method: 'POST',  // or 'GET' depending on your endpoint
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-        // your data here
-        prompt: userMessage,
-        language: "French"    // hardcoded to french for now, but we could make it dynamic if we store the language as state
-    })
-  });
+  // Leave emotions for last as of right now 
+  // Begin by doing intent validation to see which workflow we should trigger
+  let responses = [];
+  console.log(userMessage);
+  if (checkPronunciationIntent(userMessage) && !()) {
+    // Perform a pronunciation 
+    console.log("We want pronunciation critiquing?");
+    const pronounce_response = await fetch(`${FLASK_BACKEND_URL}/api/monitor/pronunciation`, {
+      method: 'POST',  // or 'GET' depending on your endpoint
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+          // your data here
+          phoneme: "an",
+          language: "French"    // hardcoded to french for now, but we could make it dynamic if we store the language as state
+      })
+    });
 
-  const trans_json = await trans_response.json();
-  const translation = trans_json['message'];
+    const pronounce_json = await pronounce_response.json();
+    const feedback = pronounce_json['message']; // this is going to be an array
+    
+    console.log(feedback);
+    console.log("Successful fetch call or what?");
 
-  // The basic translation response will always generate three paragraphs, which we split 
-  // into three components using regex
-  const responses = translation.split(/\n\s*\n/);
-  console.log(responses);
-  const langs = ["English", "French", "English"]  // likely not necessary ElevenLabs can prob recognize language 
-
-  // const completion = await openai.chat.completions.create({
-  //   model: "gpt-4o",
-  //   max_tokens: 1000,
-  //   temperature: 0.6,
-  //   response_format: {
-  //     type: "json_object",
-  //   },
-  //   messages: [
-  //     {
-  //       role: "system",
-  //       content: `
-  //       You are a teacher.
-  //       You will always reply with a JSON array of messages. With a maximum of 3 messages.
-  //       Each message has a text, facialExpression, and animation property.
-  //       The different facial expressions are: smile, sad, angry, surprised, funnyFace, and default.
-  //       The different animations are: Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, and Angry. 
-  //       `,
-  //     },
-  //     {
-  //       role: "user",
-  //       content: userMessage || "Hello",
-  //     },
-  //   ],
-  // });
-  // let messages = JSON.parse(completion.choices[0].message.content);
-  // if (messages.messages) {
-  //   messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
-  // }
+    responses = feedback;
+  } else if () {
+  } else {
+    // Perform the regular workflow
+    const trans_response = await fetch(`${FLASK_BACKEND_URL}/api/translation`, {
+      method: 'POST',  // or 'GET' depending on your endpoint
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+          // your data here
+          prompt: userMessage,
+          language: "French"    // hardcoded to french for now, but we could make it dynamic if we store the language as state
+      })
+    });
+  
+    const trans_json = await trans_response.json();
+    const translation = trans_json['message'];
+  
+    // The basic translation response will always generate three paragraphs, which we split 
+    // into three components using regex
+    responses = translation.split(/\n\s*\n/);
+  }
 
   const messages = [];
+  console.log(responses);
   for (let i = 0; i < responses.length; i++) {
     // const message = messages[i];
     const message = {
@@ -165,7 +186,7 @@ app.post("/chat", async (req, res) => {
     const fileName = `audios/message_${i}.mp3`; // The name of your audio file
     const textInput = responses[i]; // The text you wish to convert to speech
     // Do we need to specify the language
-    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput, modelID);
+    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
     // generate lipsync
     await lipSyncMessage(i);
     message.audio = await audioFileToBase64(fileName);
@@ -201,3 +222,5 @@ app.get('/should-zoom', (req, res) => {
   shouldZoom = false;
   res.json({ shouldZoom: current });
 });
+
+// Still need to do blackboard integration 
