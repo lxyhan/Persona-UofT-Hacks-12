@@ -34,29 +34,6 @@ Persona transforms language learning through an immersive AI tutoring experience
 - Claude-powered conversation engine
 - Parallel AI model processing
 
-## Getting Started 🚀
-
-### Prerequisites
-```bash
-# Required packages
-python >= 3.8
-pytorch >= 2.0
-opencv-python
-tensorflow
-```
-
-### Installation
-```bash
-git clone https://github.com/yourusername/persona.git
-cd persona
-pip install -r requirements.txt
-```
-
-### Running Persona
-```bash
-python main.py
-```
-
 ## System Requirements 💻
 
 - **CPU**: 4+ cores recommended for parallel processing
