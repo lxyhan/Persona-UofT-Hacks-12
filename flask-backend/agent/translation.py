@@ -63,7 +63,8 @@ def generate_translation_response(prompt, language="Mandarin", model_type="fast"
             system="You are a helpful language teacher.",
             messages=[{
                 "role": "user",
-                "content": message
+                # "content": message
+                "content": prompt
             }]
         )
         return message.content
@@ -73,7 +74,7 @@ def generate_translation_response(prompt, language="Mandarin", model_type="fast"
     
 # TODO: create the follow-up generation for confusion emotions and build an endpoint for it if necessary (check
 # the existing ones to see if there is already functionality for it)
-def generate_followup_response(prev_input, prev_response, language="French", model_type="slow"):
+def generate_followup_response(prev_response, language="French", model_type="slow"):
     model = "claude-3-5-haiku-20241022" if model_type == "fast" else "claude-3-5-sonnet-20241022"
 
     try:
@@ -83,9 +84,6 @@ def generate_followup_response(prev_input, prev_response, language="French", mod
             temperature=0.7,
             system="You are a helpful language teacher.",
             messages=[{
-                "role": "user",
-                "content": prev_input
-            }, {
                 "role": "assistant",
                 "content": prev_response
             }, {

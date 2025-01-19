@@ -59,6 +59,28 @@ def generate_llm_translation():
             'status': 'error',
             'message': 'Failed to generate translation.'
         }), 500
+    
+@app.route('/api/followup', methods=['POST'])
+def generate_followup():
+    try:
+        print(request)
+        data = request.get_json()
+        # inpt = data.get('prev_input', "")
+        prev = data.get('prev', "")
+
+        # Generate a followup
+        response = generate_followup_response(prev)[0].text
+
+        return jsonify({
+            'status': 'success',
+            'message': response
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to generate translation.'
+        }), 500
+
 #=============================================================
 
 #=============================================================

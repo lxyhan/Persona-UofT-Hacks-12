@@ -147,11 +147,14 @@ class EmotionMonitorService:
         for emotion, score in self.emotion_buffer:
             emotion_counts[emotion] = emotion_counts.get(emotion, 0) + score
 
+        print(emotion_counts)
+
         dominant = max(emotion_counts.items(), key=lambda x: x[1])
         return {
             'emotion': dominant[0],
             'score': dominant[1] / len(self.emotion_buffer),
-            'confidence': len(self.emotion_buffer) / self.monitoring_duration
+            'confidence': len(self.emotion_buffer) / self.monitoring_duration,
+            'counts': emotion_counts
         }
 
     def stop(self):
