@@ -152,7 +152,7 @@ def check_pronunciation():
         if analysis:
             return jsonify({
                 'status': 'success',
-                'data': feedback
+                'message': feedback
             }), 200
         else:
             return jsonify({
