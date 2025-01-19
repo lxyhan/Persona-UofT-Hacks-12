@@ -169,6 +169,7 @@ app.post("/chat", async (req, res) => {
   // Leave emotions for last as of right now 
   // Begin by doing intent validation to see which workflow we should trigger
   let responses = [];
+  // let response = undefined;
   console.log(userMessage);
   if (checkPronunciationIntent(userMessage)) {
     // Perform a pronunciation 
@@ -192,6 +193,7 @@ app.post("/chat", async (req, res) => {
     console.log("Successful fetch call or what?");
 
     responses = feedback;
+    // response = feedback.join(' ');
   // } else if () {
   } else {
     // Perform the regular workflow
@@ -209,7 +211,9 @@ app.post("/chat", async (req, res) => {
   
     const trans_json = await trans_response.json();
     const translation = trans_json['message'];
-  
+    // response = translation;
+    
+    // Just don't bother splitting it rn
     // The basic translation response will always generate three paragraphs, which we split 
     // into three components using regex
     responses = translation.split(/\n\s*\n/);
@@ -239,6 +243,23 @@ app.post("/chat", async (req, res) => {
   }
 
   res.send({ messages });
+  // const message = {
+  //     text: response,
+  //     audio: undefined,
+  //     lipsync: undefined,
+  //     facialExpression: "smile",
+  //     animation: "Talking_1"
+  //   }
+  //   // generate audio file
+  //   const fileName = `audios/message_${0}.mp3`; // The name of your audio file
+  //   const textInput = response; // The text you wish to convert to speech
+  //   // Do we need to specify the language
+  //   await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
+  //   // generate lipsync
+  //   await lipSyncMessage(0);
+  //   message.audio = await audioFileToBase64(fileName);
+  //   message.lipsync = await readJsonTranscript(`audios/message_${0}.json`);
+  //   res.send({ message });
 });
 
 const readJsonTranscript = async (file) => {

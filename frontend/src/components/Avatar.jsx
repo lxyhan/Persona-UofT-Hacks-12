@@ -114,6 +114,64 @@ export function Avatar(props) {
   const { message, onMessagePlayed, chat } = useChat();
 
   const [lipsync, setLipsync] = useState();
+
+  // Function to play a single message
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playMessage = async (messageData) => {
+    setIsPlaying(true);
+    setAnimation(messageData.animation);
+    setFacialExpression(messageData.facialExpression);
+    setLipsync(messageData.lipsync);
+    
+    const audioElement = new Audio("data:audio/mp3;base64," + messageData.audio);
+    setAudio(audioElement);
+
+    const monitorStart = await fetch('http://0.0.0.0:8000/api/monitor/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: 5.0 })
+      });
+    return new Promise((resolve) => {
+      audioElement.onended = () => {
+        setIsPlaying(false);
+        resolve();
+      };
+      audioElement.play();
+    });
+  };
+
+  // Function to handle emotion detection and follow-up
+  const handleEmotionAndFollowup = async (messageData) => {
+    try {
+      // await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const emotionResponse = await fetch('http://0.0.0.0:8000/api/monitor/result', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const emotionJson = await emotionResponse.json();
+      const dominantEmotion = emotionJson?.data?.emotion?.emotion;
+
+      console.log("The dominant emotion is: " + dominantEmotion);
+
+      if (dominantEmotion === "angry") {
+        const followupResp = await fetch('http://0.0.0.0:3000/followup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prev: messageData.text })
+        });
+
+        console.log(followupResp);
+        
+        return await followupResp.json();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error in emotion detection:", error);
+      return null;
+    }
+  };
   
   // This is the message processing loop
   useEffect(() => {
@@ -122,22 +180,42 @@ export function Avatar(props) {
       setAnimation("Idle");
       return;
     }
-    setAnimation(message.animation);
-    setFacialExpression(message.facialExpression);
-    setLipsync(message.lipsync);
-    const audio = new Audio("data:audio/mp3;base64," + message.audio);
-    audio.play();
+    // setAnimation(message.animation);
+    // setFacialExpression(message.facialExpression);
+    // setLipsync(message.lipsync);
+    // const audio = new Audio("data:audio/mp3;base64," + message.audio);
+    // audio.play();
 
     // Do some bs here with emotion detection
-    const followup = getEmotion(message);
-    console.log(followup);
-    if (followup) {
-      const followAudio = new Audio("data:audio/mp3;base64," + followup.message.audio)
-      followAudio.play();
-    }
+    // const followup = getEmotion(message);
+    // console.log(followup);
+    // if (followup) {
+    //   const followAudio = new Audio("data:audio/mp3;base64," + followup.message.audio)
+    //   followAudio.play();
+    // }
 
-    setAudio(audio);
-    audio.onended = onMessagePlayed;
+    // setAudio(audio);
+    // audio.onended = onMessagePlayed;
+
+    const handleMessageSequence = async () => {
+      // Play the initial message
+      await playMessage(message);
+      // Include the call to the emotion thing in play message and then handle the follow up after
+      
+      // After initial message completes, check for follow-up
+      // Best bet is to split this into two
+      const followup = await handleEmotionAndFollowup(message);
+      
+      if (followup) {
+        // Play the follow-up message
+        await playMessage(followup.message);
+      }
+      
+      // Notify that all messages have been played
+      onMessagePlayed();
+    };
+
+    handleMessageSequence();
   }, [message]);
 
   const { animations } = useGLTF("/models/animations.glb");
@@ -180,61 +258,60 @@ export function Avatar(props) {
     return () => actions[animation]?.fadeOut(0.5);
   }, [animation, actions, mixer]);
 
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  const getEmotion = async (message) => {
-      const monitorStart = await fetch('http://0.0.0.0:8000/api/monitor/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          duration: 5.0
-        })
-      });
+  // const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  // const getEmotion = async (message) => {
+  //     const monitorStart = await fetch('http://0.0.0.0:8000/api/monitor/start', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         duration: 5.0
+  //       })
+  //     });
 
-      console.log("Analyzing emotion");
+  //     console.log("Analyzing emotion");
 
-      // Wait the 10 seconds
-      await sleep(5000);
+  //     // Wait the 10 seconds
+  //     await sleep(5000);
 
-      // Get the dominant emotion 
-      const emotionResponse = await fetch('http://0.0.0.0:8000/api/monitor/result', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  //     // Get the dominant emotion 
+  //     const emotionResponse = await fetch('http://0.0.0.0:8000/api/monitor/result', {
+  //       method: 'GET',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //     });
 
-      console.log("Figuring out dominant emotion");
+  //     console.log("Figuring out dominant emotion");
 
-      const emotionJson =  await emotionResponse.json();
+  //     const emotionJson =  await emotionResponse.json();
 
-      console.log(emotionJson);
+  //     console.log(emotionJson);
 
-      const dominantEmotion = emotionJson['data']['emotion']['emotion'];
+  //     const dominantEmotion = emotionJson['data']['emotion']['emotion'];
 
-      console.log(dominantEmotion);
+  //     console.log(dominantEmotion);
 
-      if (dominantEmotion == "angry") {
-        console.log("Previous message: " + message.text)
-        // Generate a follow up
-        const followupResp = await fetch('http://0.0.0.0:3000/followup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prev: message.text
-          })
-        });
-        const followup =  await followupResp.json();
-        console.log(followup);
-        const followupMessage = followup.message.text;
-        console.log("Follow up" + followupMessage);
-        return followup;
-      }
-  }  
-
+  //     if (dominantEmotion == "angry") {
+  //       console.log("Previous message: " + message.text)
+  //       // Generate a follow up
+  //       const followupResp = await fetch('http://0.0.0.0:3000/followup', {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify({
+  //           prev: message.text
+  //         })
+  //       });
+  //       const followup =  await followupResp.json();
+  //       console.log(followup);
+  //       const followupMessage = followup.message.text;
+  //       console.log("Follow up" + followupMessage);
+  //       return followup;
+  //     }
+  // }  
 
   const lerpMorphTarget = (target, value, speed = 0.1) => {
     scene.traverse((child) => {
