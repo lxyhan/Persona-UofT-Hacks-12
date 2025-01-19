@@ -114,7 +114,8 @@ export function Avatar(props) {
   const { message, onMessagePlayed, chat } = useChat();
 
   const [lipsync, setLipsync] = useState();
-
+  
+  // This is the message processing loop
   useEffect(() => {
     console.log("Message received:", message);
     if (!message) {
@@ -126,6 +127,15 @@ export function Avatar(props) {
     setLipsync(message.lipsync);
     const audio = new Audio("data:audio/mp3;base64," + message.audio);
     audio.play();
+
+    // Do some bs here with emotion detection
+    const followup = getEmotion(message);
+    console.log(followup);
+    if (followup) {
+      const followAudio = new Audio("data:audio/mp3;base64," + followup.message.audio)
+      followAudio.play();
+    }
+
     setAudio(audio);
     audio.onended = onMessagePlayed;
   }, [message]);
@@ -169,6 +179,61 @@ export function Avatar(props) {
     // Cleanup: fade out the animation on unmount
     return () => actions[animation]?.fadeOut(0.5);
   }, [animation, actions, mixer]);
+
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const getEmotion = async (message) => {
+      const monitorStart = await fetch('http://0.0.0.0:8000/api/monitor/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          duration: 5.0
+        })
+      });
+
+      console.log("Analyzing emotion");
+
+      // Wait the 10 seconds
+      await sleep(5000);
+
+      // Get the dominant emotion 
+      const emotionResponse = await fetch('http://0.0.0.0:8000/api/monitor/result', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log("Figuring out dominant emotion");
+
+      const emotionJson =  await emotionResponse.json();
+
+      console.log(emotionJson);
+
+      const dominantEmotion = emotionJson['data']['emotion']['emotion'];
+
+      console.log(dominantEmotion);
+
+      if (dominantEmotion == "angry") {
+        console.log("Previous message: " + message.text)
+        // Generate a follow up
+        const followupResp = await fetch('http://0.0.0.0:3000/followup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prev: message.text
+          })
+        });
+        const followup =  await followupResp.json();
+        console.log(followup);
+        const followupMessage = followup.message.text;
+        console.log("Follow up" + followupMessage);
+        return followup;
+      }
+  }  
 
 
   const lerpMorphTarget = (target, value, speed = 0.1) => {

@@ -62,7 +62,6 @@ const checkPronunciationIntent = (message) => {
   const pronunciationKeywords = [
       'pronunciation',
       'pronounce',
-      'say',
       'speak',
       'sound',
       'accent'
@@ -73,6 +72,51 @@ const checkPronunciationIntent = (message) => {
       lowercaseMessage.includes(keyword)
   );
 }
+
+app.post("/followup", async (req, res) => {
+    const prevOutput = req.body.prev;
+
+    // Make the call to the Flask Backend
+    const followupResponse = await fetch('http://0.0.0.0:8000/api/followup', {
+      method: 'POST',  // or 'GET' depending on your endpoint
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+          prev: prevOutput
+      })
+    });
+
+    const followupJson = await followupResponse.json();
+
+    console.log(followupJson);
+
+    const followupMessage = followupJson['message']; 
+
+    console.log(followupMessage);
+    
+    const message = {
+      text: followupMessage,
+      audio: undefined,
+      lipsync: undefined,
+      facialExpression: "smile",
+      animation: "Talking_1"
+  }
+
+  // generate audio file
+  const fileName = `audios/message_0.mp3`; // The name of your audio file
+  const textInput = followupMessage; // The text you wish to convert to speech
+  // Do we need to specify the language
+  await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
+  // generate lipsync
+  await lipSyncMessage(0);
+  message.audio = await audioFileToBase64(fileName);
+  message.lipsync = await readJsonTranscript(`audios/message_0.json`);
+
+  console.log(message);
+
+  res.send({ message })
+});
 
 app.post("/chat", async (req, res) => {
   // Hardcoded Emotion Recognition workflow trigger
@@ -126,7 +170,7 @@ app.post("/chat", async (req, res) => {
   // Begin by doing intent validation to see which workflow we should trigger
   let responses = [];
   console.log(userMessage);
-  if (checkPronunciationIntent(userMessage) && !()) {
+  if (checkPronunciationIntent(userMessage)) {
     // Perform a pronunciation 
     console.log("We want pronunciation critiquing?");
     const pronounce_response = await fetch(`${FLASK_BACKEND_URL}/api/monitor/pronunciation`, {
@@ -148,7 +192,7 @@ app.post("/chat", async (req, res) => {
     console.log("Successful fetch call or what?");
 
     responses = feedback;
-  } else if () {
+  // } else if () {
   } else {
     // Perform the regular workflow
     const trans_response = await fetch(`${FLASK_BACKEND_URL}/api/translation`, {

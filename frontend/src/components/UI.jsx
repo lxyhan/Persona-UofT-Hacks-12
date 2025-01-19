@@ -88,6 +88,7 @@ useEffect(() => {
     if (event.data.type === "speech-to-chatbot") {
       console.log("Received message from speech app:", event.data.message);
       chat(event.data.message); // Use the chat function to process the text
+      
     }
   };
 

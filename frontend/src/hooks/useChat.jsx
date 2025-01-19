@@ -109,3 +109,6 @@ export const useChat = () => {
   }
   return context;
 };
+
+// Somewhere after calling the chat component here, we need to make a call to process the user's emotions while they listen to the answer
+// Just hardcode the call it don't matter at this point :/ 
